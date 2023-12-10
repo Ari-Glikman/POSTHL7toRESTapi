@@ -1,4 +1,4 @@
-![image](https://github.com/Ari-Glikman/POSTHL7toRESTapi/assets/73805987/6b94f957-bca2-44ed-bc48-7db99f5b7308)This is a mock example of a production that takes in HL7 messages via a TCP port, processesses them to decide whether they are identical to previous messages or not, and if the latter (assuming it is a valid message) POSTS a JSON message to a REST API Endpoint as well as updates internal tables to maintain patient records.
+This is a mock example of a production that takes in HL7 messages via a TCP port, processesses them to decide whether they are identical to previous messages or not, and if the latter (assuming it is a valid message) POSTS a JSON message to a REST API Endpoint as well as updates internal tables to maintain patient records.
 
 A simplified image is here:
 
