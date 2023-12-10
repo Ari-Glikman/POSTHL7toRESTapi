@@ -2,7 +2,7 @@ This is a mock example of a production that takes in HL7 messages via a TCP port
 
 A simplified image is here:
 
-![image](https://github.com/Ari-Glikman/aidoc-final-mock/assets/73805987/c7c21ba8-da7f-448a-ab3f-a6fb322975a5)
+![Production Diagram 4](https://github.com/Ari-Glikman/POSTHL7toRESTapi/assets/73805987/45816685-f14b-4fd8-92b2-e8e7584a4e81)
 
 
 The production looks as follows:
