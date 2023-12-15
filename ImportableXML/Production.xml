@@ -1,0 +1,1219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Export generator="IRIS" version="26" zv="IRIS for Windows (x86-64) 2022.3 (Build 606U)" ts="2023-12-15 13:42:17">
+<Class name="Demo.BO.CheckTable">
+<Super>Ens.BusinessOperation</Super>
+<TimeChanged>66808,69880.4643584</TimeChanged>
+<TimeCreated>66808,67680.8590099</TimeCreated>
+
+<Parameter name="ADAPTER">
+<Default>EnsLib.SQL.OutboundAdapter</Default>
+</Parameter>
+
+<Parameter name="INVOCATION">
+<Default>Queue</Default>
+</Parameter>
+
+<Method name="GetPatientFromTable">
+<FormalSpec>pRequest:Demo.REQ.PatientNewData,*pResponse:Demo.RES.PatientInformation</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+
+    set myquery = "SELECT FirstName, LastName, TeudatZehut, DateOfBirth, Observation, PatientClass, IDPatientVisit FROM Demo.PatientTable WHERE TeudatZehut Like ?"
+    set tStatement = ##class(%SQL.Statement).%New()
+    set qStatus = tStatement.%Prepare(myquery)
+    set rset = tStatement.%Execute(pRequest.TeudatZehut) 
+
+
+     set pResponse = ##class(Demo.RES.PatientInformation).%New()
+    
+    if rset.%Next(){
+        set pResponse.FirstName = rset.%Get("FirstName")
+        set pResponse.LastName = rset.%Get("LastName")
+        set pResponse.TeudatZehut = rset.%Get("TeudatZehut")
+        set pResponse.DateOfBirth = rset.%Get("DateOfBirth")
+        set pResponse.Observation = rset.%Get("Observation")
+        set pResponse.PatientClass = rset.%Get("PatientClass")
+        set pResponse.IDPatientVisit = rset.%Get("IDPatientVisit")
+    }
+
+    set st = pResponse.%Save()
+
+    return $$$OK
+]]></Implementation>
+</Method>
+
+<Method name="UpdatePatientInTable">
+<Description>
+once post has returned successfully this is called</Description>
+<FormalSpec>pRequest:Demo.REQ.PatientUpdateTable,*pResponse:Demo.RES.PatientInformation</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+   set myquery = "Insert Or Update Demo.PatientTable"
+                _" (TeudatZehut, FirstName, LastName, DateOfBirth, Observation, PatientClass, IDPatientVisit)" 
+                _" VALUES (?, ? , ? , ?, ? , ?, ?)"
+    set tStatement = ##class(%SQL.Statement).%New()
+    set qStatus = tStatement.%Prepare(myquery)
+    set rset = tStatement.%Execute(pRequest.TeudatZehut, pRequest.FirstName, pRequest.LastName, pRequest.DateOfBirth, pRequest.Observation, pRequest.PatientClass, pRequest.IDPatientVisit) 
+  set pResponse = ##class(Demo.RES.PatientInformation).%New()
+  set pResponse.FirstName = pRequest.FirstName
+  set pResponse.LastName = pRequest.LastName
+  set pResponse.DateOfBirth = pRequest.DateOfBirth
+  set pResponse.IDPatientVisit = pRequest.IDPatientVisit
+  set pResponse.Observation = pRequest.Observation
+  set pResponse.PatientClass = pRequest.PatientClass
+  set st = pResponse.%Save()
+
+  return $$$OK
+]]></Implementation>
+</Method>
+
+<XData name="MessageMap">
+<Data><![CDATA[
+<MapItems>
+  <MapItem MessageType="Demo.REQ.PatientNewData">
+    <Method>GetPatientFromTable</Method>
+  </MapItem>
+  <MapItem MessageType="Demo.REQ.PatientUpdateTable">
+    <Method>UpdatePatientInTable</Method>
+  </MapItem>
+</MapItems>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Demo.BO.REST">
+<ProcedureBlock>1</ProcedureBlock>
+<Super>EnsLib.REST.Operation</Super>
+<TimeChanged>66818,37450.8714154</TimeChanged>
+<TimeCreated>66808,70415.3316336</TimeCreated>
+
+<Method name="GETHello">
+<Description><![CDATA[
+This operation allows you to check if you have acces to Ensemble. <br> - <b>Operate it only in develeopment!</b><br> - It can be operated from a browser as well. <br> - It should show you the IP you are connected from]]></Description>
+<FormalSpec>pRequest:Demo.REQ.HelloTest,pResponse:Demo.RES.PatientUpdateData</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	#dim Err as %Exception.AbstractException
+	#dim pHttpResponse as %Net.HttpResponse
+	set pResponse=##class(Demo.RES.PatientUpdateData).%New()
+	try {
+		set pURL 						= ..Adapter.URL_"/HelloTest"
+		set pHttpRequestIn				= ##class(%Net.HttpRequest).%New()
+		Set pHttpRequestIn.ContentType 	= "application/json"
+
+		set tStatus=..Adapter.SendFormDataArray(.pHttpResponse, "GET", pHttpRequestIn , , , pURL)
+		if $$$ISERR(tStatus) {
+			set pResponse.Success=0
+			set pResponse.ErrorMessage=$system.Status.GetErrorText(tStatus)
+			quit
+		}		
+		If $Isobject(pHttpResponse) {
+			if pHttpResponse.StatusCode'=200 {
+				set pResponse.Success=0
+				set pResponse.ErrorMessage="Status code "_pHttpResponse.StatusCode
+				quit
+			}
+			set pResponse.Success=1
+		}
+	}
+	catch Err {
+		set tStatus=Err.AsStatus()
+		set pResponse.Success=0
+		set pResponse.ErrorMessage=$system.Status.GetErrorText(tStatus)
+	}
+	Return tStatus
+]]></Implementation>
+</Method>
+
+<Method name="POSTUpdatePatientData">
+<Description>
+This method updates the patient data - extracted from HL7 messages</Description>
+<FormalSpec>pRequest:Demo.REQ.PatientUpdateData,pResponse:Demo.RES.PatientUpdateData</FormalSpec>
+<ReturnType>%Status</ReturnType>
+<Implementation><![CDATA[
+	Set tStatus = $$$OK
+	#dim Err as %Exception.AbstractException
+	#dim pHttpResponse as %Net.HttpResponse
+	set pResponse=##class(Demo.RES.PatientUpdateData).%New()
+	try {
+		set pURL 						= ..Adapter.URL_"/PatientUpdateData"
+		set pHttpRequestIn				= ##class(%Net.HttpRequest).%New()
+		Set pHttpRequestIn.ContentType 	= "application/json"
+		
+		do pRequest.%JSONExportToStream(pHttpRequestIn.EntityBody)
+		set tStatus=..Adapter.SendFormDataArray(.pHttpResponse, "post", pHttpRequestIn , , , pURL)
+		if $$$ISERR(tStatus) {
+			set pResponse.Success=0
+			set pResponse.ErrorMessage=$system.Status.GetErrorText(tStatus)
+			quit
+		}		
+		If $Isobject(pHttpResponse) {
+			if pHttpResponse.StatusCode'=200 {
+				set pResponse.Success=0
+				set pResponse.ErrorMessage="Status code "_pHttpResponse.StatusCode
+				quit
+			}
+			do pResponse.%JSONImport(pHttpResponse.Data)
+		}
+		
+	}
+	catch Err {
+		set tStatus=Err.AsStatus()
+		set pResponse.Success=0
+		set pResponse.ErrorMessage=$system.Status.GetErrorText(tStatus)
+	}
+	Return tStatus
+]]></Implementation>
+</Method>
+
+<XData name="MessageMap">
+<Data><![CDATA[
+<MapItems>
+	<MapItem MessageType="Demo.REQ.HelloTest">
+		<Method>GETHello</Method>
+	</MapItem>
+	<MapItem MessageType="Demo.REQ.PatientUpdateData">
+		<Method>POSTUpdatePatientData</Method>
+	</MapItem>
+</MapItems>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Demo.BP.CheckMessage">
+<Description>
+</Description>
+<Super>Ens.BusinessProcessBPL</Super>
+<TimeChanged>66818,42518.9469474</TimeChanged>
+<TimeCreated>66818,37593.3484142</TimeCreated>
+
+<XData name="BPL">
+<Description>
+BPL Definition</Description>
+<XMLNamespace>http://www.intersystems.com/bpl</XMLNamespace>
+<Data><![CDATA[
+<process language='objectscript' request='Demo.REQ.PatientNewData' response='Ens.Response' height='2000' width='2000' >
+<context>
+<property name='FirstNameOld' type='%String' instantiate='0' >
+<parameters>
+<parameter name='MAXLEN'  value='50' />
+</parameters>
+</property>
+<property name='LastNameOld' type='%String' instantiate='0' >
+<parameters>
+<parameter name='MAXLEN'  value='50' />
+</parameters>
+</property>
+<property name='DateOfBirthOld' type='%String' instantiate='0' >
+<parameters>
+<parameter name='MAXLEN'  value='50' />
+</parameters>
+</property>
+<property name='ObservationOld' type='%String' instantiate='0' >
+<parameters>
+<parameter name='MAXLEN'  value='50' />
+</parameters>
+</property>
+<property name='PatientClassOld' type='%String' instantiate='0' >
+<parameters>
+<parameter name='MAXLEN'  value='50' />
+</parameters>
+</property>
+<property name='IDPatientVisitOld' type='%String' instantiate='0' >
+<parameters>
+<parameter name='MAXLEN'  value='50' />
+</parameters>
+</property>
+<property name='POSTReturn' type='%String' instantiate='0' >
+<parameters>
+<parameter name='MAXLEN'  value='50' />
+</parameters>
+</property>
+<property name='POSTErrorMsg' type='%String' instantiate='0' >
+<parameters>
+<parameter name='MAXLEN'  value='50' />
+</parameters>
+</property>
+</context>
+<sequence xend='200' yend='1250' >
+<trace name='Request Received!' value='"received request for "_request.TeudatZehut' xpos='200' ypos='250' />
+<call name='Call Check Table' target='Check Table' async='0' xpos='200' ypos='350' >
+<request type='Demo.REQ.PatientNewData' >
+<assign property="callrequest.TeudatZehut" value="request.TeudatZehut" action="set" />
+</request>
+<response type='Demo.RES.PatientInformation' >
+<assign property="context.FirstNameOld" value="callresponse.FirstName" action="set" />
+<assign property="context.LastNameOld" value="callresponse.LastName" action="set" />
+<assign property="context.DateOfBirthOld" value="callresponse.DateOfBirth" action="set" />
+<assign property="context.ObservationOld" value="callresponse.Observation" action="set" />
+<assign property="context.PatientClassOld" value="callresponse.PatientClass" action="set" />
+<assign property="context.IDPatientVisitOld" value="callresponse.IDPatientVisit" action="set" />
+</response>
+</call>
+<if name='Identical Object Exists' condition='(request.FirstName=context.FirstNameOld)&amp;&amp;(request.LastName=context.LastNameOld)&amp;&amp;(request.DateOfBirth=context.DateOfBirthOld)&amp;&amp;(request.Observation=context.ObservationOld)&amp;&amp;(request.PatientClass=context.PatientClassOld)&amp;&amp;(request.IDPatientVisit=context.IDPatientVisitOld)' xpos='200' ypos='450' xend='200' yend='1150' >
+<true>
+<empty name='Do Nothing' xpos='200' ypos='600' />
+<trace name='Identical Message Exists!' value='"Identical Message Exists!"' xpos='200' ypos='700' />
+</true>
+<false>
+<call name='POST' target='POST Patient' async='0' xpos='470' ypos='600' >
+<request type='Demo.REQ.PatientUpdateData' >
+<assign property="callrequest.PatientFirstName" value="request.FirstName" action="set" />
+<assign property="callrequest.PatientLastName" value="request.LastName" action="set" />
+<assign property="callrequest.PatientDOB" value="request.DateOfBirth" action="set" />
+<assign property="callrequest.PatientId" value="request.TeudatZehut" action="set" />
+<assign property="callrequest.PatientClass" value="request.PatientClass" action="set" />
+<assign property="callrequest.StudyData" value="request.Observation" action="set" />
+<assign property="callrequest.StudyId" value="request.IDPatientVisit" action="set" />
+</request>
+<response type='Demo.RES.PatientUpdateData' >
+<assign property="context.POSTReturn" value="callresponse.Success" action="set" />
+<assign property="context.POSTErrorMsg" value="callresponse.ErrorMessage" action="set" />
+</response>
+</call>
+<if name='POST Success' condition='context.POSTReturn' xpos='470' ypos='700' xend='470' yend='1050' >
+<true>
+<call name='Update Table' target='Check Table' async='0' xpos='470' ypos='850' >
+<request type='Demo.REQ.PatientUpdateTable' >
+<assign property="callrequest.FirstName" value="request.FirstName" action="set" />
+<assign property="callrequest.LastName" value="request.LastName" action="set" />
+<assign property="callrequest.DateOfBirth" value="request.DateOfBirth" action="set" />
+<assign property="callrequest.TeudatZehut" value="request.TeudatZehut" action="set" />
+<assign property="callrequest.PatientClass" value="request.PatientClass" action="set" />
+<assign property="callrequest.Observation" value="request.Observation" action="set" />
+<assign property="callrequest.IDPatientVisit" value="request.IDPatientVisit" action="set" />
+</request>
+</call>
+</true>
+<false>
+<empty name='Do Nothing (No Update)' xpos='740' ypos='850' />
+<trace name='POST Failed' value='"post failed due to "_context.POSTErrorMsg' xpos='740' ypos='950' />
+</false>
+</if>
+</false>
+</if>
+</sequence>
+</process>
+]]></Data>
+</XData>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+</Storage>
+</Class>
+
+
+<Class name="Demo.HL7InRoutingRule">
+<Description>
+</Description>
+<Super>Ens.Rule.Definition</Super>
+<TimeChanged>66818,58222.2149456</TimeChanged>
+<TimeCreated>66808,66904.553694</TimeCreated>
+
+<Parameter name="RuleAssistClass">
+<Default>EnsLib.HL7.MsgRouter.RuleAssist</Default>
+</Parameter>
+
+<XData name="RuleDefinition">
+<XMLNamespace>http://www.intersystems.com/rule</XMLNamespace>
+<Data><![CDATA[
+<ruleDefinition alias="" context="EnsLib.HL7.MsgRouter.RoutingEngine" production="Demo.PostHL7toRESTAPI">
+<ruleSet name="" effectiveBegin="" effectiveEnd="">
+<rule name="Check ORM_O01">
+<constraint name="source" value="HL7In"></constraint>
+<constraint name="docCategory" value="2.3"></constraint>
+<constraint name="docName" value="ORM_O01"></constraint>
+<when condition="1" comment="">
+<send transform="Demo.Transformations.ORMO01toJSON" target="Check Message"></send>
+</when>
+</rule>
+<rule name="Check ORU_R01" disabled="false">
+<constraint name="source" value="HL7In"></constraint>
+<constraint name="docCategory" value="2.3"></constraint>
+<constraint name="docName" value="ORU_R01"></constraint>
+<when condition="1" comment="">
+<send transform="Demo.Transformations.ORUR01toJSON" target="Check Message"></send>
+</when>
+</rule>
+</ruleSet>
+</ruleDefinition>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Demo.PatientTable">
+<Super>%Persistent</Super>
+<TimeChanged>66808,69512.3275442</TimeChanged>
+<TimeCreated>66808,68917.2114764</TimeCreated>
+
+<Property name="FirstName">
+<Type>%String</Type>
+</Property>
+
+<Property name="LastName">
+<Type>%String</Type>
+</Property>
+
+<Property name="DateOfBirth">
+<Type>%String</Type>
+</Property>
+
+<Property name="TeudatZehut">
+<Description>
+needs to be string as can start with 0 </Description>
+<Type>%String</Type>
+</Property>
+
+<Index name="TeudatZehutIndex">
+<Properties>TeudatZehut</Properties>
+<Unique>1</Unique>
+</Index>
+
+<Property name="Observation">
+<Type>%String</Type>
+</Property>
+
+<Property name="PatientClass">
+<Type>%String</Type>
+</Property>
+
+<Property name="IDPatientVisit">
+<Type>%String</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Demo.PatientTableD</DataLocation>
+<DefaultData>PatientTableDefaultData</DefaultData>
+<IdLocation>^Demo.PatientTableD</IdLocation>
+<IndexLocation>^Demo.PatientTableI</IndexLocation>
+<StreamLocation>^Demo.PatientTableS</StreamLocation>
+<ExtentSize>1</ExtentSize>
+<Data name="PatientTableDefaultData">
+<Structure>listnode</Structure>
+<Subscript/>
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>FirstName</Value>
+</Value>
+<Value name="3">
+<Value>LastName</Value>
+</Value>
+<Value name="4">
+<Value>DateOfBirth</Value>
+</Value>
+<Value name="5">
+<Value>TeudatZehut</Value>
+</Value>
+<Value name="6">
+<Value>Observation</Value>
+</Value>
+<Value name="7">
+<Value>PatientClass</Value>
+</Value>
+<Value name="8">
+<Value>IDPatientVisit</Value>
+</Value>
+</Data>
+<Property name="%%CLASSNAME">
+<Selectivity>100.0000%</Selectivity>
+<AverageFieldSize>2</AverageFieldSize>
+</Property>
+<Property name="%%ID">
+<Selectivity>1</Selectivity>
+<AverageFieldSize>3</AverageFieldSize>
+</Property>
+<Property name="DateOfBirth">
+<Selectivity>100.0000%</Selectivity>
+<AverageFieldSize>2</AverageFieldSize>
+</Property>
+<Property name="FirstName">
+<Selectivity>100.0000%</Selectivity>
+<AverageFieldSize>8</AverageFieldSize>
+</Property>
+<Property name="IDPatientVisit">
+<Selectivity>100.0000%</Selectivity>
+<AverageFieldSize>2</AverageFieldSize>
+</Property>
+<Property name="LastName">
+<Selectivity>100.0000%</Selectivity>
+<AverageFieldSize>2</AverageFieldSize>
+</Property>
+<Property name="Observation">
+<Selectivity>100.0000%</Selectivity>
+<AverageFieldSize>2</AverageFieldSize>
+</Property>
+<Property name="PatientClass">
+<Selectivity>100.0000%</Selectivity>
+<AverageFieldSize>2</AverageFieldSize>
+</Property>
+<Property name="TeudatZehut">
+<Selectivity>1</Selectivity>
+<AverageFieldSize>5</AverageFieldSize>
+</Property>
+<SQLMap name="IDKEY">
+<BlockCount>-4</BlockCount>
+</SQLMap>
+<SQLMap name="TeudatZehutIndex">
+<BlockCount>-4</BlockCount>
+</SQLMap>
+</Storage>
+</Class>
+
+
+<Class name="Demo.PostHL7toRESTAPI">
+<Super>Ens.Production</Super>
+<TimeChanged>66818,61988.9132132</TimeChanged>
+<TimeCreated>66808,66804.3461783</TimeCreated>
+
+<XData name="ProductionDefinition">
+<Data><![CDATA[
+<Production Name="Demo.PostHL7toRESTAPI" TestingEnabled="true" LogGeneralTraceEvents="false">
+  <Description></Description>
+  <ActorPoolSize>2</ActorPoolSize>
+  <Item Name="HL7In" Category="" ClassName="EnsLib.HL7.Service.TCPService" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="MessageSchemaCategory">2.3</Setting>
+    <Setting Target="Host" Name="TargetConfigNames">HL7In_Router</Setting>
+    <Setting Target="Adapter" Name="Port">5555</Setting>
+  </Item>
+  <Item Name="HL7In_Router" Category="" ClassName="EnsLib.HL7.MsgRouter.RoutingEngine" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Host" Name="BusinessRuleName">Demo.HL7InRoutingRule</Setting>
+  </Item>
+  <Item Name="Check Table" Category="" ClassName="Demo.BO.CheckTable" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+  <Item Name="POST Patient" Category="" ClassName="Demo.BO.REST" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+    <Setting Target="Adapter" Name="HTTPPort">52776</Setting>
+    <Setting Target="Adapter" Name="HTTPServer">localhost</Setting>
+    <Setting Target="Adapter" Name="URL">/demo</Setting>
+  </Item>
+  <Item Name="Check Message" Category="" ClassName="Demo.BP.CheckMessage" PoolSize="1" Enabled="true" Foreground="false" Comment="" LogTraceEvents="false" Schedule="">
+  </Item>
+</Production>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Demo.REQ.HelloTest">
+<Super>%Persistent,Ens.Request</Super>
+<TimeChanged>66808,70212.1581163</TimeChanged>
+<TimeCreated>66808,70212.0250647</TimeCreated>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Demo.REQ.HelloTestD</DataLocation>
+<DefaultData>HelloTestDefaultData</DefaultData>
+<IdLocation>^Demo.REQ.HelloTestD</IdLocation>
+<IndexLocation>^Demo.REQ.HelloTestI</IndexLocation>
+<StreamLocation>^Demo.REQ.HelloTestS</StreamLocation>
+<Data name="HelloTestDefaultData">
+<Structure>listnode</Structure>
+<Subscript/>
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Demo.REQ.PatientNewData">
+<Super>%Persistent,%JSON.Adaptor,%XML.Adaptor,Ens.Request</Super>
+<TimeChanged>66808,68216.9113385</TimeChanged>
+<TimeCreated>66808,68216.7579715</TimeCreated>
+
+<Property name="FirstName">
+<Type>%String</Type>
+</Property>
+
+<Property name="LastName">
+<Type>%String</Type>
+</Property>
+
+<Property name="DateOfBirth">
+<Type>%String</Type>
+</Property>
+
+<Property name="TeudatZehut">
+<Description>
+needs to be string as can start with 0 </Description>
+<Type>%String</Type>
+</Property>
+
+<Index name="TeudatZehutIndex">
+<Properties>TeudatZehut</Properties>
+</Index>
+
+<Property name="PatientClass">
+<Type>%String</Type>
+</Property>
+
+<Property name="Observation">
+<Description>
+I(npatient), O(utpatient), E(mergency), P(readmit)</Description>
+<Type>%String</Type>
+</Property>
+
+<Property name="IDPatientVisit">
+<Type>%String</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Demo.REQ.PatientNewDataD</DataLocation>
+<DefaultData>PatientNewDataDefaultData</DefaultData>
+<IdLocation>^Demo.REQ.PatientNewDataD</IdLocation>
+<IndexLocation>^Demo.REQ.PatientNewDataI</IndexLocation>
+<StreamLocation>^Demo.REQ.PatientNewDataS</StreamLocation>
+<Data name="PatientNewDataDefaultData">
+<Structure>listnode</Structure>
+<Subscript/>
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>FirstName</Value>
+</Value>
+<Value name="3">
+<Value>LastName</Value>
+</Value>
+<Value name="4">
+<Value>DateOfBirth</Value>
+</Value>
+<Value name="5">
+<Value>TeudatZehut</Value>
+</Value>
+<Value name="6">
+<Value>PatientClass</Value>
+</Value>
+<Value name="7">
+<Value>Observation</Value>
+</Value>
+<Value name="8">
+<Value>IDPatientVisit</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Demo.REQ.PatientUpdateData">
+<ProcedureBlock>1</ProcedureBlock>
+<Super>%Persistent,Ens.Request,%JSON.Adaptor</Super>
+<TimeChanged>66808,70361.4417503</TimeChanged>
+<TimeCreated>66808,70361.2846661</TimeCreated>
+<Inheritance>left</Inheritance>
+
+<Property name="PatientId">
+<Type>%VarString</Type>
+<Required>1</Required>
+</Property>
+
+<Property name="PatientClass">
+<Type>%VarString</Type>
+</Property>
+
+<Property name="PatientDOB">
+<Type>%VarString</Type>
+</Property>
+
+<Property name="PatientFirstName">
+<Type>%VarString</Type>
+</Property>
+
+<Property name="PatientLastName">
+<Type>%VarString</Type>
+</Property>
+
+<Property name="StudyId">
+<Type>%VarString</Type>
+</Property>
+
+<Property name="StudyData">
+<Type>%VarString</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Demo.REQ.PatientUpdateDataD</DataLocation>
+<DefaultData>PatientUpdateDataDefaultData</DefaultData>
+<IdLocation>^Demo.REQ.PatientUpdateDataD</IdLocation>
+<IndexLocation>^Demo.REQ.PatientUpdateDataI</IndexLocation>
+<StreamLocation>^Demo.REQ.PatientUpdateDataS</StreamLocation>
+<Data name="PatientUpdateDataDefaultData">
+<Structure>listnode</Structure>
+<Subscript/>
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>PatientId</Value>
+</Value>
+<Value name="3">
+<Value>PatientClass</Value>
+</Value>
+<Value name="4">
+<Value>PatientDOB</Value>
+</Value>
+<Value name="5">
+<Value>PatientFirstName</Value>
+</Value>
+<Value name="6">
+<Value>PatientLastName</Value>
+</Value>
+<Value name="7">
+<Value>StudyId</Value>
+</Value>
+<Value name="8">
+<Value>StudyData</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Demo.REQ.PatientUpdateTable">
+<Super>%Persistent,%JSON.Adaptor,%XML.Adaptor,Ens.Request</Super>
+<TimeChanged>66808,68481.0918361</TimeChanged>
+<TimeCreated>66808,68480.9308076</TimeCreated>
+
+<Property name="FirstName">
+<Type>%String</Type>
+</Property>
+
+<Property name="LastName">
+<Type>%String</Type>
+</Property>
+
+<Property name="DateOfBirth">
+<Type>%String</Type>
+</Property>
+
+<Property name="TeudatZehut">
+<Type>%String</Type>
+</Property>
+
+<Index name="TeudatZehutIndex">
+<Properties>TeudatZehut</Properties>
+</Index>
+
+<Property name="Observation">
+<Type>%String</Type>
+</Property>
+
+<Property name="PatientClass">
+<Type>%String</Type>
+</Property>
+
+<Property name="IDPatientVisit">
+<Type>%String</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Demo.REQ.PatientUpdateTableD</DataLocation>
+<DefaultData>PatientUpdateTableDefaultData</DefaultData>
+<IdLocation>^Demo.REQ.PatientUpdateTableD</IdLocation>
+<IndexLocation>^Demo.REQ.PatientUpdateTableI</IndexLocation>
+<StreamLocation>^Demo.REQ.PatientUpdateTableS</StreamLocation>
+<Data name="PatientUpdateTableDefaultData">
+<Structure>listnode</Structure>
+<Subscript/>
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>FirstName</Value>
+</Value>
+<Value name="3">
+<Value>LastName</Value>
+</Value>
+<Value name="4">
+<Value>DateOfBirth</Value>
+</Value>
+<Value name="5">
+<Value>TeudatZehut</Value>
+</Value>
+<Value name="6">
+<Value>Observation</Value>
+</Value>
+<Value name="7">
+<Value>PatientClass</Value>
+</Value>
+<Value name="8">
+<Value>IDPatientVisit</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Demo.RES.PatientInformation">
+<Super>%Persistent,%JSON.Adaptor,%XML.Adaptor,Ens.Response</Super>
+<TimeChanged>66808,68679.5124871</TimeChanged>
+<TimeCreated>66808,68679.3658034</TimeCreated>
+
+<Property name="FirstName">
+<Type>%String</Type>
+</Property>
+
+<Property name="LastName">
+<Type>%String</Type>
+</Property>
+
+<Property name="DateOfBirth">
+<Type>%String</Type>
+</Property>
+
+<Property name="TeudatZehut">
+<Description>
+needs to be string as can start with 0 </Description>
+<Type>%String</Type>
+</Property>
+
+<Index name="TeudatZehutIndex">
+<Properties>TeudatZehut</Properties>
+</Index>
+
+<Property name="Observation">
+<Type>%String</Type>
+</Property>
+
+<Property name="PatientClass">
+<Type>%String</Type>
+</Property>
+
+<Property name="IDPatientVisit">
+<Type>%String</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Demo.RES.PatientInformationD</DataLocation>
+<DefaultData>PatientInformationDefaultData</DefaultData>
+<IdLocation>^Demo.RES.PatientInformationD</IdLocation>
+<IndexLocation>^Demo.RES.PatientInformationI</IndexLocation>
+<StreamLocation>^Demo.RES.PatientInformationS</StreamLocation>
+<Data name="PatientInformationDefaultData">
+<Structure>listnode</Structure>
+<Subscript/>
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>FirstName</Value>
+</Value>
+<Value name="3">
+<Value>LastName</Value>
+</Value>
+<Value name="4">
+<Value>DateOfBirth</Value>
+</Value>
+<Value name="5">
+<Value>TeudatZehut</Value>
+</Value>
+<Value name="6">
+<Value>Observation</Value>
+</Value>
+<Value name="7">
+<Value>PatientClass</Value>
+</Value>
+<Value name="8">
+<Value>IDPatientVisit</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Demo.RES.PatientUpdateData">
+<ProcedureBlock>1</ProcedureBlock>
+<Super>%Persistent,Ens.Request,%JSON.Adaptor</Super>
+<TimeChanged>66808,70667.0707156</TimeChanged>
+<TimeCreated>66808,70666.9220079</TimeCreated>
+
+<Property name="Success">
+<Type>%Boolean</Type>
+</Property>
+
+<Property name="ErrorMessage">
+<Type>%VarString</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Demo.RES.PatientUpdateDataD</DataLocation>
+<DefaultData>PatientUpdateDataDefaultData</DefaultData>
+<IdLocation>^Demo.RES.PatientUpdateDataD</IdLocation>
+<IndexLocation>^Demo.RES.PatientUpdateDataI</IndexLocation>
+<StreamLocation>^Demo.RES.PatientUpdateDataS</StreamLocation>
+<Data name="PatientUpdateDataDefaultData">
+<Structure>listnode</Structure>
+<Subscript/>
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>Success</Value>
+</Value>
+<Value name="3">
+<Value>ErrorMessage</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Demo.RES.TransformMessage">
+<Super>%Persistent,%JSON.Adaptor,%XML.Adaptor,Ens.Request</Super>
+<TimeChanged>66818,43986.3232706</TimeChanged>
+<TimeCreated>66818,43986.0874128</TimeCreated>
+
+<Property name="FirstName">
+<Type>%String</Type>
+</Property>
+
+<Property name="LastName">
+<Type>%String</Type>
+</Property>
+
+<Property name="DateOfBirth">
+<Type>%String</Type>
+</Property>
+
+<Property name="TeudatZehut">
+<Type>%String</Type>
+</Property>
+
+<Index name="TeudatZehutIndex">
+<Properties>TeudatZehut</Properties>
+</Index>
+
+<Property name="TimeofMessage">
+<Type>%TimeStamp</Type>
+<InitialExpression>+$h</InitialExpression>
+</Property>
+
+<Property name="PatientClass">
+<Type>%String</Type>
+</Property>
+
+<Property name="Observation">
+<Description>
+I(npatient), O(utpatient), E(mergency), P(readmit)
+should this be string?</Description>
+<Type>%String</Type>
+</Property>
+
+<Property name="IDPatientVisit">
+<Type>%String</Type>
+</Property>
+
+<Storage name="Default">
+<Type>%Storage.Persistent</Type>
+<DataLocation>^Demo.RES.TransformMessageD</DataLocation>
+<DefaultData>TransformMessageDefaultData</DefaultData>
+<IdLocation>^Demo.RES.TransformMessageD</IdLocation>
+<IndexLocation>^Demo.RES.TransformMessageI</IndexLocation>
+<StreamLocation>^Demo.RES.TransformMessageS</StreamLocation>
+<Data name="TransformMessageDefaultData">
+<Structure>listnode</Structure>
+<Subscript/>
+<Value name="1">
+<Value>%%CLASSNAME</Value>
+</Value>
+<Value name="2">
+<Value>FirstName</Value>
+</Value>
+<Value name="3">
+<Value>LastName</Value>
+</Value>
+<Value name="4">
+<Value>DateOfBirth</Value>
+</Value>
+<Value name="5">
+<Value>TeudatZehut</Value>
+</Value>
+<Value name="6">
+<Value>TimeofMessage</Value>
+</Value>
+<Value name="7">
+<Value>PatientClass</Value>
+</Value>
+<Value name="8">
+<Value>Observation</Value>
+</Value>
+<Value name="9">
+<Value>IDPatientVisit</Value>
+</Value>
+</Data>
+</Storage>
+</Class>
+
+
+<Class name="Demo.Transformations.ORMO01toJSON">
+<Super>Ens.DataTransformDTL</Super>
+<TimeChanged>66823,48004.6421069</TimeChanged>
+<TimeCreated>66818,43879.657862</TimeCreated>
+<DependsOn>EnsLib.HL7.Message,Demo.RES.TransformMessage</DependsOn>
+
+<Parameter name="IGNOREMISSINGSOURCE">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="REPORTERRORS">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="TREATEMPTYREPEATINGFIELDASNULL">
+<Default>0</Default>
+</Parameter>
+
+<XData name="DTL">
+<XMLNamespace>http://www.intersystems.com/dtl</XMLNamespace>
+<Data><![CDATA[
+<transform sourceClass='EnsLib.HL7.Message' targetClass='Demo.RES.TransformMessage' sourceDocType='2.3:ORM_O01' create='new' language='objectscript' >
+<subtransform class='Demo.Transformations.SubTransforms.MSHtoJSON' targetObj='target' sourceObj='source.{MSH}' />
+<subtransform class='Demo.Transformations.SubTransforms.PIDtoJSON' targetObj='target' sourceObj='source.{PIDgrp.PID}' />
+</transform>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Demo.Transformations.ORUR01toJSON">
+<Super>Ens.DataTransformDTL</Super>
+<TimeChanged>66818,59391.6410066</TimeChanged>
+<TimeCreated>66818,57510.3685262</TimeCreated>
+<DependsOn>EnsLib.HL7.Message,Demo.RES.TransformMessage</DependsOn>
+
+<Parameter name="IGNOREMISSINGSOURCE">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="REPORTERRORS">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="TREATEMPTYREPEATINGFIELDASNULL">
+<Default>0</Default>
+</Parameter>
+
+<XData name="DTL">
+<XMLNamespace>http://www.intersystems.com/dtl</XMLNamespace>
+<Data><![CDATA[
+<transform sourceClass='EnsLib.HL7.Message' targetClass='Demo.RES.TransformMessage' sourceDocType='2.3:ORU_R01' create='new' language='objectscript' >
+<foreach property='source.{PIDgrpgrp()}' key='k1' >
+<subtransform class='Demo.Transformations.SubTransforms.PIDtoJSON' targetObj='target' sourceObj='source.{PIDgrpgrp(k1).PIDgrp.PID}' />
+<subtransform class='Demo.Transformations.SubTransforms.PV1toJSON' targetObj='target' sourceObj='source.{PIDgrpgrp(k1).PIDgrp.PV1grp.PV1}' />
+<foreach property='source.{PIDgrpgrp(k1).ORCgrp()}' key='k2' >
+<foreach property='source.{PIDgrpgrp(k1).ORCgrp(k2).OBXgrp()}' key='k3' >
+<subtransform class='Demo.Transformations.SubTransforms.OBXtoJSON' targetObj='target' sourceObj='source.{PIDgrpgrp(k1).ORCgrp(k2).OBXgrp(k3).OBX}' />
+</foreach>
+</foreach>
+</foreach>
+</transform>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Demo.Transformations.SubTransforms.MSHtoJSON">
+<Super>Ens.DataTransformDTL</Super>
+<TimeChanged>66818,59522.7325662</TimeChanged>
+<TimeCreated>66818,44324.8825838</TimeCreated>
+<DependsOn>EnsLib.HL7.Segment,Demo.RES.TransformMessage</DependsOn>
+
+<Parameter name="IGNOREMISSINGSOURCE">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="REPORTERRORS">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="TREATEMPTYREPEATINGFIELDASNULL">
+<Default>0</Default>
+</Parameter>
+
+<XData name="DTL">
+<XMLNamespace>http://www.intersystems.com/dtl</XMLNamespace>
+<Data><![CDATA[
+<transform sourceClass='EnsLib.HL7.Segment' targetClass='Demo.RES.TransformMessage' sourceDocType='2.3:MSH' targetDocType='2.3:MSH' create='existing' language='objectscript' >
+<assign value='source.{DateTimeofMessage}' property='target.TimeofMessage' action='set' />
+</transform>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Demo.Transformations.SubTransforms.OBXtoJSON">
+<Super>Ens.DataTransformDTL</Super>
+<TimeChanged>66818,59533.1361298</TimeChanged>
+<TimeCreated>66818,57275.7177608</TimeCreated>
+<DependsOn>EnsLib.HL7.Segment,Demo.RES.TransformMessage</DependsOn>
+
+<Parameter name="IGNOREMISSINGSOURCE">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="REPORTERRORS">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="TREATEMPTYREPEATINGFIELDASNULL">
+<Default>0</Default>
+</Parameter>
+
+<XData name="DTL">
+<XMLNamespace>http://www.intersystems.com/dtl</XMLNamespace>
+<Data><![CDATA[
+<transform sourceClass='EnsLib.HL7.Segment' targetClass='Demo.RES.TransformMessage' sourceDocType='2.3:OBX' targetDocType='2.3:OBX' create='existing' language='objectscript' >
+<assign value='source.{ObservationIdentifier.text}_" = "_source.{ObservationValue()}_" "_source.{Units.identifier} ' property='target.Observation' action='set' />
+</transform>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Demo.Transformations.SubTransforms.PIDtoJSON">
+<Super>Ens.DataTransformDTL</Super>
+<TimeChanged>66818,59544.6696073</TimeChanged>
+<TimeCreated>66818,56829.421394</TimeCreated>
+<DependsOn>EnsLib.HL7.Segment,Demo.RES.TransformMessage</DependsOn>
+
+<Parameter name="IGNOREMISSINGSOURCE">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="REPORTERRORS">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="TREATEMPTYREPEATINGFIELDASNULL">
+<Default>0</Default>
+</Parameter>
+
+<XData name="DTL">
+<XMLNamespace>http://www.intersystems.com/dtl</XMLNamespace>
+<Data><![CDATA[
+<transform sourceClass='EnsLib.HL7.Segment' targetClass='Demo.RES.TransformMessage' sourceDocType='2.3:PID' targetDocType='2.3:PID' create='existing' language='objectscript' >
+<assign value='source.{PatientName.familyname}' property='target.LastName' action='set' />
+<assign value='source.{PatientName.givenname}' property='target.FirstName' action='set' />
+<if condition='source.{PatientIDExternalID.ID}=""' >
+<true>
+<assign value='source.{PatientIDInternalID().ID}' property='target.TeudatZehut' action='set' />
+</true>
+<false>
+<assign value='source.{PatientIDExternalID.ID}' property='target.TeudatZehut' action='set' />
+</false>
+</if>
+<assign value='source.{DateofBirth.timeofanevent}' property='target.DateOfBirth' action='set' />
+</transform>
+]]></Data>
+</XData>
+</Class>
+
+
+<Class name="Demo.Transformations.SubTransforms.PV1toJSON">
+<Super>Ens.DataTransformDTL</Super>
+<TimeChanged>66818,59557.5675297</TimeChanged>
+<TimeCreated>66818,57387.5476108</TimeCreated>
+<DependsOn>EnsLib.HL7.Segment,Demo.RES.TransformMessage</DependsOn>
+
+<Parameter name="IGNOREMISSINGSOURCE">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="REPORTERRORS">
+<Default>1</Default>
+</Parameter>
+
+<Parameter name="TREATEMPTYREPEATINGFIELDASNULL">
+<Default>0</Default>
+</Parameter>
+
+<XData name="DTL">
+<XMLNamespace>http://www.intersystems.com/dtl</XMLNamespace>
+<Data><![CDATA[
+<transform sourceClass='EnsLib.HL7.Segment' targetClass='Demo.RES.TransformMessage' sourceDocType='2.3:PV1' create='existing' language='objectscript' >
+<assign value='source.{PatientClass}' property='target.PatientClass' action='set' />
+<assign value='source.{SetIDPatientVisit}' property='target.IDPatientVisit' action='set' />
+</transform>
+]]></Data>
+</XData>
+</Class>
+
+
+<Project name="EnsExportProduction_2023-12-15 13-41-26_375+2" LastModified="2023-12-15 13:42:17.7281073">
+  <ProjectDescription>Studio Project generated from Production 'Demo.PostHL7toRESTAPI' at 2023-12-15 11:41:26.375 UTC</ProjectDescription>
+  <Items>
+    <ProjectItem name="Demo.BO.CheckTable" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.BO.REST" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.BP.CheckMessage" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.HL7InRoutingRule" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.PatientTable" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.PostHL7toRESTAPI" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.REQ.HelloTest" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.REQ.PatientNewData" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.REQ.PatientUpdateData" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.REQ.PatientUpdateTable" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.RES.PatientInformation" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.RES.PatientUpdateData" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.RES.TransformMessage" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.Transformations.ORMO01toJSON" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.Transformations.ORUR01toJSON" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.Transformations.SubTransforms.MSHtoJSON" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.Transformations.SubTransforms.OBXtoJSON" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.Transformations.SubTransforms.PIDtoJSON" type="CLS"></ProjectItem>
+    <ProjectItem name="Demo.Transformations.SubTransforms.PV1toJSON" type="CLS"></ProjectItem>
+    <ProjectItem name="EnsExportNotes.EnsExportProduction_2023-12-15 13-41-26_375+2.PTD" type="PTD"></ProjectItem>
+  </Items>
+</Project>
+
+
+<Document name="EnsExportNotes.EnsExportProduction_2023-12-15 13-41-26_375+2.PTD"><ProjectTextDocument name="EnsExportNotes.EnsExportProduction_2023-12-15 13-41-26_375+2" description="Export Notes for export EnsExportProduction_2023-12-15 13-41-26_375+2">
+<![CDATA[<Deployment>
+<Creation>
+<Machine>ILL7430AGLIKMAN.ISCINTERNAL.COM</Machine>
+<Instance>IRISHEALTHDHI</Instance>
+<Namespace>TRAINING</Namespace>
+<SourceProduction>Demo.PostHL7toRESTAPI</SourceProduction>
+<Username>aglikman</Username>
+<UTC>2023-12-15 11:42:17.724</UTC>
+</Creation>
+<Notes>
+</Notes>
+<Contents>
+<ExportProject>EnsExportProduction_2023-12-15 13-41-26_375+2</ExportProject>
+<Item num="1">Demo.BO.CheckTable.CLS</Item>
+<Item num="2">Demo.BO.REST.CLS</Item>
+<Item num="3">Demo.BP.CheckMessage.CLS</Item>
+<Item num="4">Demo.HL7InRoutingRule.CLS</Item>
+<Item num="5">Demo.PatientTable.CLS</Item>
+<Item num="6">Demo.PostHL7toRESTAPI.CLS</Item>
+<Item num="7">Demo.REQ.HelloTest.CLS</Item>
+<Item num="8">Demo.REQ.PatientNewData.CLS</Item>
+<Item num="9">Demo.REQ.PatientUpdateData.CLS</Item>
+<Item num="10">Demo.REQ.PatientUpdateTable.CLS</Item>
+<Item num="11">Demo.RES.PatientInformation.CLS</Item>
+<Item num="12">Demo.RES.PatientUpdateData.CLS</Item>
+<Item num="13">Demo.RES.TransformMessage.CLS</Item>
+<Item num="14">Demo.Transformations.ORMO01toJSON.CLS</Item>
+<Item num="15">Demo.Transformations.ORUR01toJSON.CLS</Item>
+<Item num="16">Demo.Transformations.SubTransforms.MSHtoJSON.CLS</Item>
+<Item num="17">Demo.Transformations.SubTransforms.OBXtoJSON.CLS</Item>
+<Item num="18">Demo.Transformations.SubTransforms.PIDtoJSON.CLS</Item>
+<Item num="19">Demo.Transformations.SubTransforms.PV1toJSON.CLS</Item>
+</Contents>
+<ProductionClassInExport>Demo.PostHL7toRESTAPI</ProductionClassInExport>
+</Deployment>
+
+]]></ProjectTextDocument>
+</Document></Export>
