@@ -50,8 +50,8 @@ After:
 
 ![image](https://github.com/Ari-Glikman/aidoc-final-mock/assets/73805987/9043a15d-a4b7-41f3-8ccf-7ea390bea641)
 
-For info about creating the REST Dispatch and Implementation classes check out our colleague, Guillaume Rongier's great repo [here](https://github.com/grongierisc/objectscript-openapi-definition)
+For info about creating the REST Dispatch and Implementation classes check out our colleague, Guillaume Rongier's great repo [here](https://github.com/grongierisc/objectscript-openapi-definition).
 
 Finally, check out Lorenzo Scalese's [repo](https://github.com/lscalese/OpenAPI-Client-Gen/) for creating an IRIS Interoperability Production generator from an OpenAPI Specification. 
 
-Final note: If you would like to run this example on your own environment you must configure where you will be sending the REST API requests to. You can import the code via the XML containing all relevant classes [here](https://github.com/Ari-Glikman/POSTHL7toRESTapi/blob/main/ImportableXML/Production.xml), compile it and configure your POST Patient Buisness Operation. In the example the http server is the same IRIS instance, which configured an endpoint to receive requests, and respond accordingly. You can check out the specification, dispatch, and implementation classes for it [here](https://github.com/Ari-Glikman/POSTHL7toRESTapi/tree/main/src/Demo)
+Final note: If you would like to run this example on your own environment you must configure where you will be sending the REST API requests to. You can import the code via the XML containing all relevant classes [here](https://github.com/Ari-Glikman/POSTHL7toRESTapi/blob/main/ImportableXML/Production.xml), compile it and configure your POST Patient Buisness Operation. In the example the http server is the same IRIS instance, which configured an endpoint to receive requests, and respond accordingly. You can check out the specification, dispatch, and implementation classes for it [here](https://github.com/Ari-Glikman/POSTHL7toRESTapi/tree/main/src/Demo).
