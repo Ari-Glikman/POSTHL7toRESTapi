@@ -1,0 +1,178 @@
+Class Demo.spec Extends %REST.Spec [ ProcedureBlock ]
+{
+
+XData OpenAPI [ MimeType = application/json ]
+{
+{
+  "swagger":"2.0",
+  "info":{
+    "description":"Patient update.",
+    "version":"1.0.0",
+    "title":"Demo Title",
+    "contact":{
+    }
+  },
+  "basePath":"/demo",
+  "schemes":[
+    "https"
+  ],
+  "consumes":[
+    "application/json"
+  ],
+  "produces":[
+    "application/json"
+  ],
+  "security":[
+    {
+      "checkin_auth":[
+      ]
+    }
+  ],
+  "paths":{
+    "/HelloTest":{
+      "get":{
+        "summary":"Server availability check",
+        "description":"This operation allows you to check if you have acces to Ensemble. <br> - <b>Operate it only in develeopment!</b><br> - It can be operated from a browser as well. <br> - It should show you the IP you are connected from",
+        "operationId":"HelloTest",
+        "produces":[
+          "plain/text"
+        ],
+        "parameters":[
+        ],
+        "responses":{
+          "200":{
+            "description":"OK",
+            "examples":{
+              "plain/text":"Welcome"
+            }
+          }
+        }
+      }
+    },
+    "/PatientUpdateData":{
+      "post":{
+        "summary":"Update Patient Data",
+        "description":"This method updates the patient data - extracted from HL7 messages",
+        "operationId":"PatientUpdateData",
+        "produces":[
+          "application/json"
+        ],
+        "parameters":[
+          {
+            "in":"body",
+            "name":"body",
+            "required":true,
+            "schema":{
+              "$ref":"#/definitions/body"
+            }
+          }
+        ],
+        "responses":{
+          "200":{
+            "description":"successfuly send the email to the patient with the questionaire link",
+            "examples":{
+              "application/json":{
+                "Success":true,
+                "ErrorMessage":""
+              }
+            },
+            "schema":{
+              "$ref":"#/definitions/GeneralError"
+            }
+          },
+          "400":{
+            "description":"Bad request",
+            "examples":{
+              "application/json":{
+                "Success":false,
+                "ErrorMessage":"Bad request"
+              }
+            },
+            "schema":{
+              "$ref":"#/definitions/GeneralError"
+            }
+          },
+          "500":{
+            "description":"Error sending the email the patient",
+            "examples":{
+              "application/json":{
+                "Success":false,
+                "ErrorMessage":"Patient not found"
+              }
+            },
+            "schema":{
+              "$ref":"#/definitions/GeneralError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "securityDefinitions":{
+    "checkin_auth":{
+      "type":"basic"
+    }
+  },
+  "definitions":{
+    "GeneralError":{
+      "type":"object",
+      "properties":{
+        "Success":{
+          "type":"boolean"
+        },
+        "ErrorMessage":{
+          "type":"string"
+        }
+      }
+    },
+    "body":{
+      "type":"object",
+      "required":[
+        "PatientClass",
+        "PatientDOB",
+        "PatientFirstName",
+        "PatientId",
+        "PatientLastName",
+        "StudyData",
+        "StudyId"
+      ],
+      "properties":{
+        "PatientId":{
+          "type":"string"
+        },
+        "PatientFirstName":{
+          "type":"string"
+        },
+        "PatientLastName":{
+          "type":"string"
+        },
+        "PatientDOB":{
+          "type":"string"
+        },
+        "PatientClass":{
+          "type":"string"
+        },
+        "StudyId":{
+          "type":"string"
+        },
+        "StudyData":{
+          "type":"string"
+        }
+      },
+      "example":{
+        "application/json":{
+          "PatientId":"000123456",
+          "PatientFirstName":"Keren",
+          "PatientLastName":"Skubach",
+          "PatientDOB":"2000-01-01",
+          "PatientClass":"I",
+          "StudyId":"AB1234",
+          "StudyData":"HJSGJGDKJGSJKHGDKJFDKHFDJKHFDGHJDFHDGF"
+        }
+      }
+    }
+  }
+}
+}
+
+}
